@@ -1,1 +1,52 @@
 #!/bin/bash
+read -p "Input hostname: " host
+read -p "Input webmaster email: " email
+read -p "Input wordpress mysql database name: " dbname
+read -p "Input mysql password: " newsqlpass
+hostnamectl set-hostname $host
+echo "Appling full system update ..."
+yum -y update
+
+echo "Installing required packages"
+yum -y install httpd php httpd-mod-php php-mysql php-mcrypt mysql-server wget
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=mysql
+firewall-cmd --reload
+sed -i 's/#ServerName www.example.com/ServerName $host/' /etc/httpd/conf/httpd.conf
+sed -i "s/root@localhost/$email/" /etc/httpd/conf/httpd.conf
+sed -i 's/index.html/index.html index.php/' /etc/httpd/conf/httpd.conf
+sed -i 's/\;date.timezone =/date.timezone = Africa\/Khartoum/' /etc/php.ini
+sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 200M/" /etc/php.ini
+sed -i "s/post_max_size = 8M/post_max_size = 250M/" /etc/php.ini
+systemctl enable httpd
+systemctl restart httpd
+systemctl enable mysqld
+systemctl restart mysqld
+sqlpass=$( grep "temporary password" /var/log/mysqld.log |cut -c 92- )
+mysqladmin -u root -p$sqlpass password $newsqlpass
+mysql -u root -p$newsqlpass -e "create database $dbname"
+
+echo "Downloading and extracting Wordpress ..."
+wget https://wordpress.org/latest.tar.gz
+tar -xf latest.tar.gz -C /var/www/html
+rm -rf latest.tar.gz
+cd /var/www/html
+mv wordpress* wp
+cp wp/wp-config-sample.php wp/wp-config.php
+chown apache:apache -R wp
+sed -i "s/database_name_here/$dbname/" wp/wp-config.php
+sed -i "s/username_here/root/" wp/wp-config.php
+sed -i "s/password_here/$newsqlpass/" wp/wp-config.php
+
+clear
+echo "###########################################"
+echo "#                                         #"
+echo "#                                         #"
+echo "#       Apache2,PHP,MYSQL,Wordpress       #"
+echo "#        Are Installed successfuly        #"
+echo "#        Go to http://Your_IP/wp          #"
+echo "#                                         #"
+echo "#                                         #"
+echo "###########################################"
+echo "Press enter to exit ..."
+read
