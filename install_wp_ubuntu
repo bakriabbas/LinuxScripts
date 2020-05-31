@@ -12,6 +12,7 @@ echo "Appling full system update ..."
 apt-get update
 apt-get -y upgrade
 apt-get -y dist-upgrade
+apt-get -y autoremove
 
 echo "Installing required packages ..."
 echo "mysql-server-5.7 mysql-server/root_password password $newsqlpass" | debconf-set-selections
